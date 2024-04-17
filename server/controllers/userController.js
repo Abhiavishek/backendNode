@@ -1,60 +1,64 @@
 // controllers/userController.js
 const userModel = require('../models/userModel');
-const nodemailer = require('nodemailer');
-const { Email, pass } = require('../env.js');
-
-// Initialize nodemailer transporter
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: Email, // Change this to your Gmail address
-        pass: pass // Change this to your Gmail password
-    }
-});
+const transporter = require('../config/nodemailer'); // Import nodemailer transporter
+const { Email } = require('../env.js');
 
 // Controller function for user registration
-function registerUser(req, res) {
+async function registerUser(req, res) {
     const { email } = req.body;
 
-    userModel.registerUser(email, (error, otp) => {
-        if (error) {
-            console.error('Error registering user:', error);
-            res.status(500).send('Failed to register user.');
-            return;
-        }
+    try {
+        const otp = await userModel.registerUser(email);
 
         // Send OTP to user's email
         const mailOptions = {
-            from: 'shownothing925@gmail.com',
+            from: Email,
             to: email,
             subject: 'Email Verification OTP',
             text: `Your OTP for email verification is: ${otp}`
         };
 
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error('Error sending OTP:', error);
-                res.status(500).send('Failed to send OTP.');
-                return;
-            }
-            console.log('OTP sent successfully.');
-            res.status(200).send('OTP sent successfully.');
-        });
-    });
+        await transporter.sendMail(mailOptions);
+        console.log('OTP sent successfully.');
+        res.status(200).send('OTP sent successfully.');
+    } catch (error) {
+        if (error.response) {
+            console.error('Error sending OTP:', error);
+            res.status(500).send('Failed to send OTP.');
+        } else {
+            console.error('Error registering user:', error);
+            res.status(500).send('Failed to register user.');
+        }
+    }
 }
 
 // Controller function for verifying user email
-function verifyUser(req, res) {
+async function verifyUser(req, res) {
     const { email, otp } = req.body;
 
-    userModel.verifyUser(email, otp, (error, result) => {
-        if (error) {
-            console.error('Error verifying user:', error);
-            res.status(500).send(error);
-            return;
-        }
+    try {
+        const result = await userModel.verifyUser(email, otp);
         res.status(200).send(result);
-    });
+    } catch (error) {
+        console.error('Error verifying user:', error);
+        res.status(500).send(error);
+    }
 }
 
-module.exports = { registerUser, verifyUser };
+async function fetchEmailByUserId(req, res) {
+    const { userId } = req.params; // assuming userId is sent as a URL parameter
+
+    try {
+        const email = await userModel.fetchEmailByUserId(userId);
+        if (email) {
+            res.status(200).send({ email });
+        } else {
+            res.status(404).send('No user found with the given ID.');
+        }
+    } catch (error) {
+        console.error('Error fetching email:', error);
+        res.status(500).send(error);
+    }
+}
+
+module.exports = { registerUser, verifyUser, fetchEmailByUserId };

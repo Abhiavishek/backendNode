@@ -1,11 +1,15 @@
-// config/db.js
 const mysql = require('mysql2');
 
-const con = mysql.createConnection({
+// Using createPool for better performance in a production environment
+const pool = mysql.createPool({
     host: 'localhost',
     user: 'root',
     password: 'admin',
-    database: 'crud' // Specify the database name
+    database: 'crud', // Specify the database name
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-module.exports = con;
+// Export the pool's promise interface
+module.exports = pool.promise();

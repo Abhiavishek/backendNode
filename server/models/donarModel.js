@@ -2,7 +2,7 @@
 const con = require('../config/db');
 
 // Function to create the "donar" table if it doesn't exist
-function createDonarTable(callback) {
+async function createDonarTable() {
     const createTableQuery = `CREATE TABLE IF NOT EXISTS donar (
         id INT AUTO_INCREMENT PRIMARY KEY,
         indianCitizen BOOLEAN,
@@ -17,32 +17,29 @@ function createDonarTable(callback) {
         panCard VARCHAR(20)
     )`;
 
-    con.query(createTableQuery, function(err, result) {
-        if (err) {
-            console.log(err);
-            callback(err);
-        } else {
-            console.log("Table created or already exists");
-            callback(null);
-        }
-    });
+    try {
+        await con.query(createTableQuery);
+        console.log("Table created or already exists");
+    } catch (err) {
+        console.log("Error creating table:", err);
+        throw err;  // Throwing the error to be handled by the caller
+    }
 }
 
 // Function to insert data into the "donar" table
-function insertDonar(data, callback) {
+async function insertDonar(data) {
     const { indianCitizen, fullName, email, gender, amount, age, contact, address, city, panCard } = data;
     const insertQuery = `INSERT INTO donar (indianCitizen, fullName, email, gender, amount, age, contact, address, city, panCard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const values = [indianCitizen, fullName, email, gender, amount, age, contact, address, city, panCard];
 
-    con.query(insertQuery, values, function(err, result) {
-        if (err) {
-            console.log(err);
-            callback(err);
-        } else {
-            console.log("1 record inserted");
-            callback(null, result);
-        }
-    });
+    try {
+        const result = await con.query(insertQuery, values);
+        console.log("1 record inserted");
+        return result;
+    } catch (err) {
+        console.log("Error inserting record:", err);
+        throw err;  // Throwing the error to be handled by the caller
+    }
 }
 
 module.exports = { createDonarTable, insertDonar };

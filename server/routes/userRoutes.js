@@ -9,4 +9,6 @@ router.post('/register', userController.registerUser);
 // Route for verifying user email
 router.post('/verify', userController.verifyUser);
 
+router.get('/:userId/email', userController.fetchEmailByUserId);
+
 module.exports = router;

@@ -3,7 +3,7 @@ const con = require('../config/db');
 const randomstring = require('randomstring');
 
 // Function to create the user table if it doesn't exist
-function createUserTable(callback) {
+async function createUserTable() {
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -12,59 +12,61 @@ function createUserTable(callback) {
             is_verified BOOLEAN DEFAULT false
         )
     `;
-
-    con.query(createTableQuery, function(err, result) {
-        if (err) {
-            console.error('Error creating user table:', err);
-            callback(err);
-        } else {
-            console.log('User table created or already exists');
-            callback(null);
-        }
-    });
+    try {
+        await con.query(createTableQuery);
+        console.log('User table created or already exists');
+    } catch (err) {
+        console.error('Error creating user table:', err);
+        throw err; // Rethrowing the error to be handled by the caller
+    }
 }
 
 // Function to register a new user
-function registerUser(email, callback) {
+async function registerUser(email) {
     const otp = randomstring.generate({ length: 6, charset: 'numeric' });
     const user = { email, otp };
-
-    con.query('INSERT INTO users SET ?', user, function(error, results, fields) {
-        if (error) {
-            console.error('Error registering user:', error);
-            callback(error);
-        } else {
-            callback(null, otp);
-        }
-    });
+    try {
+        await con.query('INSERT INTO users SET ?', user);
+        return otp;
+    } catch (error) {
+        console.error('Error registering user:', error);
+        throw error; // Rethrowing the error to be handled by the caller
+    }
 }
 
 // Function to verify user email
-function verifyUser(email, otp, callback) {
-    con.query('SELECT * FROM users WHERE email = ?', [email], function(error, results, fields) {
-        if (error) {
-            console.error('Error verifying user:', error);
-            callback(error);
-        } else {
-            if (results.length > 0) {
-                const user = results[0];
-                if (user.otp === otp) {
-                    con.query('UPDATE users SET is_verified = true WHERE email = ?', [email], function(error, results, fields) {
-                        if (error) {
-                            console.error('Error updating user verification status:', error);
-                            callback(error);
-                        } else {
-                            callback(null, 'Email verified successfully.');
-                        }
-                    });
-                } else {
-                    callback('Invalid OTP.');
-                }
+async function verifyUser(email, otp) {
+    try {
+        const [results] = await con.query('SELECT * FROM users WHERE email = ?', [email]);
+        if (results.length > 0) {
+            const user = results[0];
+            if (user.otp === otp) {
+                await con.query('UPDATE users SET is_verified = true WHERE email = ?', [email]);
+                return 'Email verified successfully.';
             } else {
-                callback('User not found.');
+                throw new Error('Invalid OTP.');
             }
+        } else {
+            throw new Error('User not found.');
         }
-    });
+    } catch (error) {
+        console.error('Error verifying user:', error);
+        throw error; // Rethrowing the error to be handled by the caller
+    }
 }
 
-module.exports = { createUserTable, registerUser, verifyUser };
+async function fetchEmailByUserId(userId) {
+    try {
+        const [results] = await con.query('SELECT email FROM users WHERE id = ?', [userId]);
+        if (results.length > 0) {
+            return results[0].email;
+        } else {
+            throw new Error('User not found.');
+        }
+    } catch (error) {
+        console.error('Error fetching email:', error);
+        throw error; // Rethrowing the error to be handled by the caller
+    }
+}
+
+module.exports = { createUserTable, registerUser, verifyUser, fetchEmailByUserId };
